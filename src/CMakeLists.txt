@@ -1,0 +1,14 @@
+ADD_LIBRARY(
+  jkiss
+  jkiss.c
+)
+INSTALL(
+  DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../include/jkiss
+  DESTINATION include
+  FILES_MATCHING PATTERN "*.h"
+)
+INSTALL(
+  TARGETS jkiss
+  ARCHIVE
+  DESTINATION lib
+)
