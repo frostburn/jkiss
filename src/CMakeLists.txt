@@ -1,6 +1,7 @@
 ADD_LIBRARY(
   jkiss
   jkiss.c
+  util.c
 )
 INSTALL(
   DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../include/jkiss
