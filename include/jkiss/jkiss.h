@@ -7,7 +7,7 @@
 
 typedef struct jkiss32
 {
-    unsigned int x, y, z, c;
+    unsigned int x, y, z, c, w;
 } jkiss32;
 
 typedef struct jkiss64
@@ -24,7 +24,10 @@ void jkiss64_fprint(FILE *f, jkiss64 gen);
 void jkiss32_init(jkiss32 *j);
 void jkiss64_init(jkiss64 *j);
 
-// Fastest
+// Fastest, but with a smaller period. Only relies on 32-bit integers.
+unsigned int jkiss32_pure_step(jkiss32 *j);
+
+// Fast
 unsigned int jkiss32_step(jkiss32 *j);
 
 // Almost as fast, but with a longer period
@@ -61,5 +64,9 @@ void jkiss_freeze(FILE *f);
 // Spawn generators for threaded use
 jkiss32 jkiss32_spawn();
 jkiss64 jkiss64_spawn();
+
+// Get reproducible results with seeded generators
+jkiss32 jkiss32_from_seed(unsigned int seed);
+jkiss64 jkiss64_from_seed(unsigned long long seed);
 
 #endif /* !JKISS_JKISS_H_GUARD */

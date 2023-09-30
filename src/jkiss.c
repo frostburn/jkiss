@@ -7,11 +7,11 @@
 
 #include "jkiss/jkiss.h"
 
-jkiss32 jkiss32_global_gen = {123456789, 987654321, 43219876, 6543217};
+jkiss32 jkiss32_global_gen = {123456789, 987654321, 43219876, 6543217, 1};
 jkiss64 jkiss64_global_gen = {123456789123ULL, 987654321987ULL, 43219876, 6543217, 21987643, 1732654};
 
 void jkiss32_fprint(FILE *f, jkiss32 gen) {
-    fprintf(f, "(jkiss32){%u, %u, %u, %u};\n", gen.x, gen.y, gen.z, gen.c);
+    fprintf(f, "(jkiss32){%u, %u, %u, %u, %u};\n", gen.x, gen.y, gen.z, gen.c, gen.w);
 }
 
 void jkiss64_fprint(FILE *f, jkiss64 gen) {
@@ -40,6 +40,8 @@ void jkiss32_init(jkiss32 *j)
     /* We don’t really need to set c as well but let's anyway… */
     /* NOTE: offset c by 1 to avoid z=c=0 */
     j->c = devrand() % 698769068 + 1; /* Should be less than 698769069 */
+    /* The w param is only used when generating values purely with 32-bit integers */
+    j->w = devrand() & 1;
 }
 
 void jkiss64_init(jkiss64 *j)
@@ -56,7 +58,20 @@ void jkiss64_init(jkiss64 *j)
     j->cl = devrand() % 698769068 + 1;
 }
 
-// Fastest
+// Fastest, but with a smaller period. Only relies on 32-bit integers.
+unsigned int jkiss32_pure_step(jkiss32 *j)
+{
+    int t;
+    j->y ^= j->y<<5; j->y ^= j->y>>7; j->y ^= j->y<<22;
+    t = j->z + j->w + j->c;
+    j->z = j->c;
+    j->w = t < 0;
+    j->c = t & 2147483647;
+    j->x += 1411392427;
+    return j->x + j->y + j->c;
+}
+
+// Fast
 unsigned int jkiss32_step(jkiss32 *j)
 {
     unsigned long long t;
@@ -105,7 +120,7 @@ void jkiss_seed(unsigned int seed) {
     if (y == 0) {
         y = 11;
     }
-    jkiss32_global_gen = (jkiss32){seed, y, seed*seed*seed, c};
+    jkiss32_global_gen = (jkiss32){seed, y, seed*seed*seed, c, seed & 1};
     for (int i = 0; i < 100; ++i) {
         jkiss32_step(&jkiss32_global_gen);
     }
@@ -145,8 +160,8 @@ double jdrand() {
 void jkiss_freeze(FILE *f) {
     fprintf(
         f,
-        "jkiss32_global_gen = (jkiss32){%u, %u, %u, %u};\n",
-        jkiss32_global_gen.x, jkiss32_global_gen.y, jkiss32_global_gen.z, jkiss32_global_gen.c
+        "jkiss32_global_gen = (jkiss32){%u, %u, %u, %u, %u};\n",
+        jkiss32_global_gen.x, jkiss32_global_gen.y, jkiss32_global_gen.z, jkiss32_global_gen.c, jkiss32_global_gen.w
     );
     fprintf(
         f,
@@ -163,6 +178,7 @@ jkiss32 jkiss32_spawn() {
         y,
         jrand(),
         jrand() % 698769068 + 1,
+        jrand() & 1,
     };
 }
 
@@ -176,5 +192,33 @@ jkiss64 jkiss64_spawn() {
         jrand() % 698769068 + 1,
         jrand(),
         jrand() % 698769068 + 1,
+    };
+}
+
+jkiss32 jkiss32_from_seed(unsigned int seed) {
+    unsigned int y = seed * seed + 7;
+    unsigned int c = (seed ^ (seed >> 11)) % 698769068 + 1;
+    if (y == 0) {
+        y = 11;
+    }
+    jkiss32 result = (jkiss32){seed, y, seed*seed*seed, c, seed & 1};
+    for (int i = 0; i < 10; ++i) {
+        jkiss32_pure_step(&result);
+    }
+    return result;
+}
+
+jkiss64 jkiss64_from_seed(unsigned long long seed) {
+    jkiss32 helper = jkiss32_from_seed((unsigned int)seed);
+    unsigned long long y;
+    while(!(y = jkiss32_step(&helper)));
+    y |= ((unsigned long long)jkiss32_step(&helper)) << 32;
+    return (jkiss64) {
+        seed,
+        y,
+        helper.z,
+        helper.c,
+        helper.x,
+        helper.y,
     };
 }
